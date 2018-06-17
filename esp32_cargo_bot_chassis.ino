@@ -19,6 +19,7 @@
 #include <RF24.h>
 #include "nRF24L01.h"
 #include "printf.h"
+#include <Servo.h>
 
 //
 // Hardware configuration
@@ -35,6 +36,11 @@ struct metricsStruct {
 
 metricsStruct metrics = {0, 0};
 
+long lastUpdate = millis();
+int count = 0;
+
+Servo servoL;
+Servo servoR;
 
 void setup(void)
 {
@@ -50,6 +56,10 @@ void setup(void)
   radio.startListening();
 
   radio.printDetails();
+
+  servoL.attach(5);
+  servoR.attach(6);
+
 }
 
 void loop(void)
@@ -60,11 +70,31 @@ void loop(void)
   {
     // Get the packet from the radio
     radio.read( &metrics, sizeof(metrics) );
+    lastUpdate = millis();
+
+    int servoValL = map(metrics.leftMotor, -1000, 1000, 0, 180);
+    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, 0, 180);
+
+    servoL.write(servoValL);
+    servoR.write(servoValR);
 
     // Print the ID of this message.  Note that the message
     // is sent 'big-endian', so we have to flip it.
-    printf("motors %d %d \n", metrics.leftMotor, metrics.rightMotor);
+    if (count % 10 == 0) {
+      printf("motors %d %d servo %d %d\n", metrics.leftMotor, metrics.rightMotor, servoValL, servoValR);
+      count = 1;
+    } else {
+      count++;
+    }
+
+
   }
 
+  //Deadman switch - turn motors off if we haven't heard from them from 500ms
+  if (lastUpdate + 500 < millis()) {
+    printf("**************** ACTIVATING DEAD MAN SWITCH ************************** \n");
+    servoL.write(90);
+    servoR.write(90);
+  }
 }
 
