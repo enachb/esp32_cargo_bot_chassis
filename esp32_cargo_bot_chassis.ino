@@ -26,7 +26,7 @@
 //
 
 // Set up nRF24L01 radio on SPI bus plus pins 9 & 10
-RF24 radio(7, 8);
+RF24 radio(A0, 10);
 const uint64_t pipe = 0xABBDABCD71LL;              // Radio pipe addresses for the 2 nodes to communicate.
 
 struct metricsStruct {
@@ -58,7 +58,7 @@ void setup(void)
   radio.printDetails();
 
   servoL.attach(5);
-  servoR.attach(6);
+  servoR.attach(4);
 
 }
 
