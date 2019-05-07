@@ -27,6 +27,8 @@
 
 // Set up nRF24L01 radio on SPI bus plus pins 9 & 10
 RF24 radio(A0, 10);
+
+//enachb
 const uint64_t pipe = 0xABBDABCD71LL;              // Radio pipe addresses for the 2 nodes to communicate.
 
 struct metricsStruct {
@@ -49,7 +51,13 @@ void setup(void)
   printf("\r\nCargo Bot chassis controller/\r\n");
 
   radio.begin();
-  radio.setChannel(45);
+
+  //enachb
+  //radio.setChannel(45);
+
+  // jerome
+  radio.setChannel(70);
+  
   radio.setPALevel(RF24_PA_MAX);
   radio.setDataRate(RF24_250KBPS);
   radio.openReadingPipe(1, pipe);
