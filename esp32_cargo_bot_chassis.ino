@@ -1,8 +1,14 @@
 #include <SoftwareSerial.h>
 #include <ODriveArduino.h>
 
-template<class T> inline Print& operator <<(Print &obj,     T arg) { obj.print(arg);    return obj; }
-template<>        inline Print& operator <<(Print &obj, float arg) { obj.print(arg, 4); return obj; }
+template<class T> inline Print& operator <<(Print &obj,     T arg) {
+  obj.print(arg);
+  return obj;
+}
+template<>        inline Print& operator <<(Print &obj, float arg) {
+  obj.print(arg, 4);
+  return obj;
+}
 
 /*
 
@@ -22,7 +28,7 @@ template<>        inline Print& operator <<(Print &obj, float arg) { obj.print(a
 RF24 radio(A0, 10);
 
 // Serial to the ODrive
-SoftwareSerial odrive0(5, 6); //RX (ODrive TX), TX (ODrive RX)
+SoftwareSerial odrive0(6, 5); //RX (ODrive TX), TX (ODrive RX)
 
 // ODrive object
 ODriveArduino odrive(odrive0);
@@ -40,11 +46,14 @@ metricsStruct metrics = {0, 0};
 long lastUpdate = millis();
 int count = 0;
 
-Servo servoL;
-Servo servoR;
+//Servo servoL;
+//Servo servoR;
 
 void setup(void)
 {
+
+  delay(2000);
+
   Serial.begin(115200);
   odrive0.begin(115200);
 
@@ -58,7 +67,7 @@ void setup(void)
 
   // jerome
   //radio.setChannel(70);
-  
+
   radio.setPALevel(RF24_PA_MAX);
   radio.setDataRate(RF24_250KBPS);
   radio.openReadingPipe(1, pipe);
@@ -66,11 +75,18 @@ void setup(void)
 
   radio.printDetails();
 
-  //servoL.attach(5);
-  //servoR.attach(4);
+  printf("calibrating motors\n");
+  //odrive.run_state(0, ODriveArduino::AXIS_STATE_ENCODER_OFFSET_CALIBRATION, true);
+  printf("done calibrating motor 0\n");
+  //odrive.run_state(1, ODriveArduino::AXIS_STATE_ENCODER_OFFSET_CALIBRATION, true);
+  printf("done calibrating motor 1\n");
 
-  odrive.run_state(0, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, false);
-  odrive.SetVelocity(0,0);
+  //odrive.run_state(0, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, true);
+  //odrive.run_state(1, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, true);
+  
+  odrive.SetVelocity(0, 0);
+  odrive.SetVelocity(1, 0);
+  printf("Ready to drive.");
 
 }
 
@@ -84,11 +100,12 @@ void loop(void)
     radio.read( &metrics, sizeof(metrics) );
     lastUpdate = millis();
 
-    int servoValL = map(metrics.leftMotor, -1000, 1000, 0, 180);
-    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, 0, 180);
+    int servoValL = map(metrics.leftMotor, -1000, 1000, -500, 500);
+    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, -500, 500);
 
-    servoL.write(servoValL);
-    servoR.write(servoValR);
+    // Write output to motor
+    odrive.SetVelocity(0, servoValL);
+    odrive.SetVelocity(1, servoValL);
 
     // Print the ID of this message.  Note that the message
     // is sent 'big-endian', so we have to flip it.
@@ -105,8 +122,10 @@ void loop(void)
   //Deadman switch - turn motors off if we haven't heard from them from 500ms
   if (lastUpdate + 500 < millis()) {
     printf("**************** ACTIVATING DEAD MAN SWITCH ************************** \n");
-    servoL.write(90);
-    servoR.write(90);
+
+    odrive.SetVelocity(0, 0);
+    odrive.SetVelocity(1, 0);    
+
   }
 }
 
