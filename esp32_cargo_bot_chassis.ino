@@ -28,10 +28,12 @@ template<>        inline Print& operator <<(Print &obj, float arg) {
 RF24 radio(A0, 10);
 
 // Serial to the ODrive
-SoftwareSerial odrive0(6, 5); //RX (ODrive TX), TX (ODrive RX)
+SoftwareSerial odrive0_serial(6, 5); //RX (ODrive TX), TX (ODrive RX)
+SoftwareSerial odrive1_serial(8, 7); //RX (ODrive TX), TX (ODrive RX)
 
 // ODrive object
-ODriveArduino odrive(odrive0);
+ODriveArduino odrive0(odrive0_serial);
+ODriveArduino odrive1(odrive1_serial);
 
 //enachb
 const uint64_t pipe = 0xABBDABCD71LL;              // Radio pipe addresses for the 2 nodes to communicate.
@@ -55,7 +57,8 @@ void setup(void)
   delay(2000);
 
   Serial.begin(115200);
-  odrive0.begin(115200);
+  odrive0_serial.begin(115200);
+  odrive1_serial.begin(115200);
 
   printf_begin();
   printf("\r\nCargo Bot chassis controller/\r\n");
@@ -84,8 +87,12 @@ void setup(void)
   //odrive.run_state(0, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, true);
   //odrive.run_state(1, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, true);
   
-  odrive.SetVelocity(0, 0);
-  odrive.SetVelocity(1, 0);
+  odrive0.SetVelocity(0, 0);
+  odrive0.SetVelocity(1, 0);
+
+  odrive1.SetVelocity(0, 0);
+  odrive1.SetVelocity(1, 0);
+
   printf("Ready to drive.");
 
 }
@@ -104,8 +111,11 @@ void loop(void)
     int servoValR = map(0 - metrics.rightMotor, -1000, 1000, -500, 500);
 
     // Write output to motor
-    odrive.SetVelocity(0, servoValL);
-    odrive.SetVelocity(1, servoValL);
+    odrive0.SetVelocity(0, servoValL);
+    odrive0.SetVelocity(1, servoValL);
+
+    odrive1.SetVelocity(0, servoValR);
+    odrive1.SetVelocity(1, servoValR);
 
     // Print the ID of this message.  Note that the message
     // is sent 'big-endian', so we have to flip it.
@@ -123,8 +133,12 @@ void loop(void)
   if (lastUpdate + 500 < millis()) {
     printf("**************** ACTIVATING DEAD MAN SWITCH ************************** \n");
 
-    odrive.SetVelocity(0, 0);
-    odrive.SetVelocity(1, 0);    
+    // Kill motors
+    odrive0.SetVelocity(0, 0);
+    odrive0.SetVelocity(1, 0);
+
+    odrive1.SetVelocity(0, 0);
+    odrive1.SetVelocity(1, 0);
 
   }
 }
