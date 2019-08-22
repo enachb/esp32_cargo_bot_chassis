@@ -19,7 +19,8 @@
 #include <RF24.h>
 #include "nRF24L01.h"
 #include "printf.h"
-#include <Servo.h>
+#include <SoftwareSerial.h>
+#include "Sabertooth.h"
 
 //
 // Hardware configuration
@@ -28,6 +29,11 @@
 // Set up nRF24L01 radio on SPI bus plus pins 9 & 10
 RF24 radio(A0, 10);
 const uint64_t pipe = 0xABBDABCD71LL;              // Radio pipe addresses for the 2 nodes to communicate.
+
+//SoftwareSerial ST_serial(5, 6); //RX (ST TX), TX (ST RX)
+SoftwareSerial SW_serial(NOT_A_PIN, 6); //RX unused, TX (ST RX)
+
+Sabertooth ST(128, SW_serial);
 
 struct metricsStruct {
   int16_t leftMotor;
@@ -39,14 +45,11 @@ metricsStruct metrics = {0, 0};
 long lastUpdate = millis();
 int count = 0;
 
-Servo servoL;
-Servo servoR;
-
 void setup(void)
 {
   Serial.begin(115200);
   printf_begin();
-  printf("\r\nCargo Bot chassis controller/\r\n");
+  printf("\r\nSlofa chassis controller/\r\n");
 
   radio.begin();
   radio.setChannel(45);
@@ -57,8 +60,9 @@ void setup(void)
 
   radio.printDetails();
 
-  servoL.attach(5);
-  servoR.attach(4);
+  SW_serial.begin(9600);
+  ST.autobaud();
+  ST.setTimeout(950);
 
 }
 
@@ -72,11 +76,12 @@ void loop(void)
     radio.read( &metrics, sizeof(metrics) );
     lastUpdate = millis();
 
-    int servoValL = map(metrics.leftMotor, -1000, 1000, 0, 180);
-    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, 0, 180);
-
-    servoL.write(servoValL);
-    servoR.write(servoValR);
+    int servoValL = map(metrics.leftMotor, -1000, 1000, -127, 127);
+    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, -127, 127);
+    
+    ST.motor(1, servoValL);
+    ST.motor(2, servoValR);
+    
 
     // Print the ID of this message.  Note that the message
     // is sent 'big-endian', so we have to flip it.
@@ -93,8 +98,8 @@ void loop(void)
   //Deadman switch - turn motors off if we haven't heard from them from 500ms
   if (lastUpdate + 500 < millis()) {
     printf("**************** ACTIVATING DEAD MAN SWITCH ************************** \n");
-    servoL.write(90);
-    servoR.write(90);
+    ST.motor(1, 0);
+    ST.motor(2, 0);
   }
 }
 
