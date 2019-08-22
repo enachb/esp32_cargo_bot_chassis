@@ -28,12 +28,14 @@ template<>        inline Print& operator <<(Print &obj, float arg) {
 RF24 radio(A0, 10);
 
 // Serial to the ODrive
-SoftwareSerial odrive0_serial(6, 5); //RX (ODrive TX), TX (ODrive RX)
-SoftwareSerial odrive1_serial(8, 7); //RX (ODrive TX), TX (ODrive RX)
+SoftwareSerial odrive0_serial(5, 6); //RX (ODrive TX), TX (ODrive RX)
+SoftwareSerial odrive1_serial(7, 8); //RX (ODrive TX), TX (ODrive RX)
 
 // ODrive object
 ODriveArduino odrive0(odrive0_serial);
 ODriveArduino odrive1(odrive1_serial);
+
+const int DEADBAND = 11;
 
 //enachb
 const uint64_t pipe = 0xABBDABCD71LL;              // Radio pipe addresses for the 2 nodes to communicate.
@@ -86,7 +88,7 @@ void setup(void)
 
   //odrive.run_state(0, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, true);
   //odrive.run_state(1, ODriveArduino::AXIS_STATE_CLOSED_LOOP_CONTROL, true);
-  
+
   odrive0.SetVelocity(0, 0);
   odrive0.SetVelocity(1, 0);
 
@@ -107,15 +109,34 @@ void loop(void)
     radio.read( &metrics, sizeof(metrics) );
     lastUpdate = millis();
 
-    int servoValL = map(metrics.leftMotor, -1000, 1000, -500, 500);
-    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, -500, 500);
+    int servoValL = map(metrics.leftMotor, -1000, 1000, -1000, 1000);
+    int servoValR = map(0 - metrics.rightMotor, -1000, 1000, -1000, 1000);
+
+    int feed_forwardR = 20;
+    int feed_forwardL = 20;
+
+    // Drive motors unless values are too low
+    if ( abs(servoValR) < DEADBAND ) {
+      servoValR = 0;
+      feed_forwardR = 0;
+    }
+    if ( abs(servoValL) < DEADBAND ) {
+      servoValL = 0;
+      feed_forwardL = 0;
+    }
 
     // Write output to motor
-    odrive0.SetVelocity(0, servoValL);
-    odrive0.SetVelocity(1, servoValL);
+    //    odrive0.SetVelocity(0, servoValR, feed_forwardR);
+    //    odrive0.SetVelocity(1, servoValR, feed_forwardR);
+    //
+    //    odrive1.SetVelocity(0, servoValL, feed_forwardR);
+    //    odrive1.SetVelocity(1, servoValL, feed_forwardR);
 
-    odrive1.SetVelocity(0, servoValR);
-    odrive1.SetVelocity(1, servoValR);
+    odrive0.SetVelocity(0, servoValR);
+    odrive0.SetVelocity(1, servoValR);
+
+    odrive1.SetVelocity(0, servoValL);
+    odrive1.SetVelocity(1, servoValL);
 
     // Print the ID of this message.  Note that the message
     // is sent 'big-endian', so we have to flip it.
